@@ -46,8 +46,13 @@ html,body{margin:0;height:100%;background:#05020a;color:#fff;font-family:Impact,
 .overlayBox{border:4px solid var(--pink);background:#0c0714ee;padding:28px 36px;box-shadow:0 0 32px #ff2dbf99}
 .overlayBox h1{font:900 clamp(42px,7vw,86px) "Courier New";color:var(--yellow);margin:0 0 14px;text-shadow:4px 4px #6f153a}
 .overlayBox button{margin-top:15px}
+#boom{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6) rotate(-7deg);
+z-index:35;opacity:0;pointer-events:none;color:#ffe331;font:900 clamp(48px,10vw,140px) Impact;
+text-shadow:7px 7px #ff2d88,12px 12px #000;transition:.14s}
+#boom.show{opacity:1;transform:translate(-50%,-50%) scale(1.08) rotate(-7deg)}
 #scan{position:absolute;inset:0;pointer-events:none;z-index:60;background:repeating-linear-gradient(to bottom,transparent 0 3px,#0002 4px);mix-blend-mode:multiply}
 @media(max-width:800px){
+  /* Gameplay remains the same 16:9 composition; only UI scales for phones. */
   #hud{gap:5px;top:4px;left:4px;right:4px}
   .panel{padding:5px 7px;border-width:2px}
   .playerPanel{width:120px}
@@ -70,7 +75,7 @@ html,body{margin:0;height:100%;background:#05020a;color:#fff;font-family:Impact,
   </div>
 
   <div id="play" class="screen">
-    <canvas id="game" width="1600" height="900"></canvas>
+    <canvas id="game"></canvas>
     <div id="hud">
       <div class="panel playerPanel">
         <div class="hearts" id="hearts">♥♥♥</div>
@@ -95,7 +100,7 @@ html,body{margin:0;height:100%;background:#05020a;color:#fff;font-family:Impact,
 
   <div id="gameOver"><div class="overlayBox"><h1>GAME OVER</h1><div class="stageLine">GRANDMA KEEPS THE HILL</div><button class="press" onclick="location.reload()">TRY AGAIN</button></div></div>
   <div id="win"><div class="overlayBox"><h1>HILL DETHRONED!</h1><div class="stageLine">QUEEN OF CARB CONTROL DEFEATED</div><button class="press" onclick="location.reload()">PLAY AGAIN</button></div></div>
-  <div id="scan"></div>
+  <div id="boom">THICC EXPLOSION!</div><div id="scan"></div>
 </div>
 
 <script>
@@ -112,10 +117,24 @@ const stageDefs=[
 ];
 const bgImgs=stageDefs.map(s=>{let i=new Image();i.src=s.img;return i});
 const keys={};
+const VIRTUAL_W=1600,VIRTUAL_H=900;
+let view={cw:innerWidth,ch:innerHeight,scale:1,tx:0,ty:0,dpr:1};
 let state,last=0,running=false,voiceReady=false,lastTaunt=0;
 
+function resizeCanvas(){
+ const dpr=Math.min(devicePixelRatio||1,2);
+ const r=canvas.getBoundingClientRect();
+ canvas.width=Math.max(1,Math.round(r.width*dpr));
+ canvas.height=Math.max(1,Math.round(r.height*dpr));
+ const scale=Math.max(r.width/VIRTUAL_W,r.height/VIRTUAL_H); // cover: preserve art proportions, crop only
+ view={cw:r.width,ch:r.height,scale,tx:(r.width-VIRTUAL_W*scale)/2,ty:(r.height-VIRTUAL_H*scale)/2,dpr};
+}
+addEventListener('resize',resizeCanvas);
+addEventListener('orientationchange',()=>setTimeout(resizeCanvas,120));
+
+
 function reset(){
- state={stage:0,score:0,lives:3,thicc:0,bossHP:100,bossMax:100,time:0,spawn:0,cam:0,shake:0,
+ state={stage:0,score:0,lives:3,thicc:0,bossHP:100,bossMax:100,time:0,spawn:0,cam:0,shake:0,exploding:false,
  player:{x:800,y:760,vx:0,vy:0,w:58,h:82,onGround:false,inv:0,attack:0,facing:1},
  hazards:[],fx:[]};
  setStage(0,true);
@@ -128,10 +147,12 @@ function setStage(n,first=false){
  stageCard.classList.add('show');setTimeout(()=>stageCard.classList.remove('show'),first?1800:1500);
 }
 function start(){
+ resizeCanvas();
  reset();title.classList.remove('active');play.classList.add('active');running=true;last=performance.now();
  voiceReady=true;setTimeout(()=>grandmaYell(true),1000);requestAnimationFrame(loop);
 }
 document.getElementById('start').onclick=start;
+resizeCanvas();
 
 addEventListener('keydown',e=>{
  keys[e.code]=true;
@@ -164,7 +185,10 @@ let ac;function beep(freq=120,d=.08){
 function loop(t){if(!running)return;let dt=Math.min(.033,(t-last)/1000);last=t;update(dt);draw();requestAnimationFrame(loop)}
 function update(dt){
  const s=state,p=s.player,def=stageDefs[s.stage];s.time+=dt;
- const heavy=1+s.thicc/80,spd=(keys.ShiftLeft?410:320)/heavy;
+ const climbProgress=Math.max(0,Math.min(1,(p.x-220)/(1160-220)));
+ const climbThicc=climbProgress*72;
+ const effectiveThicc=Math.max(s.thicc,climbThicc);
+ const heavy=1+effectiveThicc/72,spd=(keys.ShiftLeft?410:320)/heavy;
  if(keys.ArrowLeft||keys.KeyA){p.vx-=900*dt;p.facing=-1}
  if(keys.ArrowRight||keys.KeyD){p.vx+=900*dt;p.facing=1}
  p.vx*=Math.pow(.02,dt);p.vx=Math.max(-spd,Math.min(spd,p.vx));
@@ -177,6 +201,10 @@ function update(dt){
  const groundY=820 - (p.x-220)*.52;
  if(p.y+p.h>=groundY){p.y=groundY-p.h;p.vy=0;p.onGround=true}
  p.x=Math.max(180,Math.min(1380,p.x));
+ // Climbing itself makes the challenger visibly THICC.
+ const climbFill=Math.max(0,Math.min(92,((p.x-220)/(1160-220))*92));
+ if(climbFill>s.thicc)s.thicc=Math.min(100,s.thicc+dt*7.5);
+ if(s.thicc>=100&&!s.exploding){thiccExplosion();return;}
 
  // Boss attack zone near summit
  if(p.x>1160 && p.y<310 && p.attack>0){s.bossHP-=55*dt;s.score+=Math.floor(80*dt);s.shake=7}
@@ -207,8 +235,21 @@ function spawnHazard(){
 }
 function hit(d){
  const s=state,p=s.player;if(p.inv>0)return;p.inv=1;s.thicc=Math.min(100,s.thicc+d);p.vx=-320;p.vy=-270;s.shake=12;beep(90,.15);grandmaYell();
- if(s.thicc>=100){s.lives--;s.thicc=42;p.x=350;p.y=620;p.vx=p.vy=0;p.inv=2;}
+ if(s.thicc>=100&&!s.exploding){thiccExplosion();}
 }
+
+function thiccExplosion(){
+ const s=state,p=s.player;if(s.exploding)return;
+ s.exploding=true;s.shake=28;beep(58,.35);
+ const boom=document.getElementById('boom');boom.classList.add('show');
+ for(let i=0;i<80;i++)s.fx.push({x:p.x+p.w/2,y:p.y+p.h/2,vx:(Math.random()-.5)*900,vy:(Math.random()-.5)*900,l:.8+Math.random()*.8,big:true});
+ setTimeout(()=>{
+   boom.classList.remove('show');
+   s.lives--;s.thicc=22;p.x=300;p.y=650;p.vx=p.vy=0;p.inv=2.2;s.exploding=false;
+   if(s.lives<=0){running=false;document.getElementById('gameOver').style.display='flex'}
+ },850);
+}
+
 function rectCircle(p,h){
  let nx=Math.max(p.x,Math.min(h.x,p.x+p.w)),ny=Math.max(p.y,Math.min(h.y,p.y+p.h));
  return (h.x-nx)**2+(h.y-ny)**2<h.r*h.r;
@@ -220,14 +261,15 @@ function updateHud(){
 }
 
 function draw(){
- const s=state,p=s.player,img=bgImgs[s.stage];ctx.save();
- if(s.shake>0){ctx.translate((Math.random()-.5)*s.shake,(Math.random()-.5)*s.shake);s.shake*=.86}
+ const s=state,p=s.player,img=bgImgs[s.stage];
+ const {dpr,scale,tx,ty}=view;
+ ctx.setTransform(1,0,0,1,0,0);
  ctx.clearRect(0,0,canvas.width,canvas.height);
- // cinematic cover crop
- if(img.complete){
-   let scale=Math.max(canvas.width/img.width,canvas.height/img.height),dw=img.width*scale,dh=img.height*scale;
-   ctx.drawImage(img,(canvas.width-dw)/2,(canvas.height-dh)/2,dw,dh);
- }
+ ctx.setTransform(dpr*scale,0,0,dpr*scale,dpr*tx,dpr*ty);
+ ctx.save();
+ if(s.shake>0){ctx.translate((Math.random()-.5)*s.shake,(Math.random()-.5)*s.shake);s.shake*=.86}
+ // Same 16:9 game art on PC and mobile; mobile crops edges instead of stretching.
+ if(img.complete){ctx.drawImage(img,0,0,VIRTUAL_W,VIRTUAL_H);}
  // gameplay readability gradient
  let g=ctx.createLinearGradient(0,0,0,900);g.addColorStop(0,'#0002');g.addColorStop(.5,'#0000');g.addColorStop(1,'#0007');ctx.fillStyle=g;ctx.fillRect(0,0,1600,900);
 
@@ -237,12 +279,16 @@ function draw(){
  for(const h of s.hazards)drawHazard(h);
  drawHero(p);
 
- for(let i=s.fx.length-1;i>=0;i--){let f=s.fx[i];f.l-=.016;f.x+=f.vx*.016;f.y+=f.vy*.016;ctx.globalAlpha=Math.max(0,f.l);ctx.fillStyle='#ffe45e';ctx.fillRect(f.x,f.y,7,7);if(f.l<=0)s.fx.splice(i,1)}
+ for(let i=s.fx.length-1;i>=0;i--){let f=s.fx[i];f.l-=.016;f.x+=f.vx*.016;f.y+=f.vy*.016;ctx.globalAlpha=Math.max(0,f.l);ctx.fillStyle=f.big?(Math.random()>.5?'#ff2dbf':'#ffe45e'):'#ffe45e';let sz=f.big?12:7;ctx.fillRect(f.x,f.y,sz,sz);if(f.l<=0)s.fx.splice(i,1)}
  ctx.globalAlpha=1;ctx.restore();
 }
 function drawHero(p){
  ctx.save();ctx.translate(p.x+p.w/2,p.y+p.h/2);
- const th=1+state.thicc/145;ctx.scale(th,1);
+ const climbProgress=Math.max(0,Math.min(1,(p.x-220)/(1160-220)));
+ const visualThicc=Math.max(state.thicc,climbProgress*92);
+ const thX=1+visualThicc/92*.78;
+ const thY=1+visualThicc/100*.12;
+ ctx.scale(thX,thY);
  if(p.inv>0&&Math.floor(p.inv*12)%2===0)ctx.globalAlpha=.35;
  // shadow
  ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,43,34,12,0,0,Math.PI*2);ctx.fill();
