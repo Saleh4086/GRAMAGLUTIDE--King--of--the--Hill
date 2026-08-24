@@ -32,12 +32,20 @@
   .fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red))}
   #bossFill{background:linear-gradient(90deg,var(--red),var(--pink))}
   #message{position:absolute;left:50%;top:80px;transform:translateX(-50%);z-index:4;font-weight:bold;font-size:18px;text-shadow:2px 2px #000;white-space:nowrap;pointer-events:none}
-  #touch{position:absolute;inset:auto 0 10px 0;display:none;justify-content:space-between;padding:0 12px;z-index:4;pointer-events:none}
-  .pad,.actions{display:flex;gap:10px;pointer-events:auto}
-  .touchBtn{width:64px;height:64px;border-radius:16px;border:3px solid #fff;background:#26103dcc;color:#fff;font:bold 24px monospace;box-shadow:3px 3px #000;touch-action:none}
-  .touchBtn:active{transform:translate(2px,2px);box-shadow:1px 1px #000;background:#ff4fd8cc}
+  #touch{position:absolute;inset:auto 0 16px 0;display:flex;justify-content:space-between;padding:0 18px;z-index:4;pointer-events:none}
+  .pad,.actions{display:flex;gap:12px;pointer-events:auto;align-items:flex-end}
+  .touchBtn{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle at 35% 30%,#60377d,#1b082d 68%);color:#fff;font:bold 25px monospace;box-shadow:0 5px 0 #08030f,0 0 18px #38f7ff66;touch-action:none}
+  .touchBtn:active{transform:translateY(4px);box-shadow:0 1px 0 #000;background:#ff4fd8}
+  .actions .touchBtn{border-radius:18px;width:82px;background:radial-gradient(circle at 35% 30%,#ff77df,#8d155f 70%)}
   #gameOver,#winScreen{display:none}
-  @media (pointer:coarse){#touch{display:flex}.small .desktop{display:none}}
+  @media (pointer:coarse){
+    .small .desktop{display:none}
+    #hud{left:5px;right:5px;top:4px;gap:4px;transform:scale(.86);transform-origin:top center;width:116%}
+    .hudbox{padding:5px 6px;min-width:92px;font-size:11px}
+    #touch{bottom:8px;padding:0 9px}
+    .touchBtn{width:58px;height:58px;font-size:20px}
+    .actions .touchBtn{width:66px}
+  }
 </style>
 </head>
 <body>
@@ -51,7 +59,7 @@
   <div id="message"></div>
   <div id="touch">
     <div class="pad"><button class="touchBtn" data-key="ArrowLeft">◀</button><button class="touchBtn" data-key="ArrowRight">▶</button></div>
-    <div class="actions"><button class="touchBtn" data-key="Space">▲</button><button class="touchBtn" data-key="KeyX">✹</button></div>
+    <div class="actions"><button class="touchBtn" data-key="Space">JMP</button><button class="touchBtn" data-key="KeyX">HIT</button></div>
   </div>
 
   <div id="titleScreen">
@@ -259,12 +267,26 @@ function draw(){
  // background hills
  ctx.fillStyle='#12051f99';ctx.beginPath();ctx.moveTo(0,570);for(let x=0;x<=W;x+=100)ctx.lineTo(x,500-(x%200)*.15);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
  // platforms/hill
- for(const pl of g.platforms){ctx.fillStyle=s.ground;ctx.fillRect(pl.x,pl.y,pl.w,pl.h);ctx.fillStyle=s.accent;ctx.fillRect(pl.x,pl.y,pl.w,5);ctx.fillStyle='#0005';for(let x=pl.x+8;x<pl.x+pl.w;x+=22)ctx.fillRect(x,pl.y+10,12,5)}
+ for(const pl of g.platforms){
+   ctx.fillStyle='#0004';ctx.fillRect(pl.x+8,pl.y+10,pl.w,pl.h);
+   ctx.fillStyle=s.ground;ctx.fillRect(pl.x,pl.y,pl.w,pl.h);
+   ctx.fillStyle=s.accent;ctx.fillRect(pl.x,pl.y,pl.w,5);
+   ctx.fillStyle='#0005';for(let x=pl.x+8;x<pl.x+pl.w;x+=22)ctx.fillRect(x,pl.y+10,12,5)
+ }
+ // neon suburban silhouettes and props
+ ctx.fillStyle='#16091fcc';
+ for(let i=0;i<7;i++){let bx=20+i*175,by=410-(i%3)*28;ctx.fillRect(bx,by,105,105);ctx.beginPath();ctx.moveTo(bx-10,by);ctx.lineTo(bx+52,by-48);ctx.lineTo(bx+115,by);ctx.fill();}
+ ctx.fillStyle='#ffe45e88';for(let i=0;i<7;i++){let bx=45+i*175,by=445-(i%3)*28;ctx.fillRect(bx,by,18,22);ctx.fillRect(bx+42,by,18,22)}
  // grandma throne zone
  ctx.fillStyle='#2b103d';ctx.fillRect(965,70,110,80);ctx.fillStyle='#ff4fd8';ctx.fillRect(978,85,84,52);
  // cooler
  ctx.fillStyle='#38f7ff';ctx.fillRect(910,112,58,35);ctx.fillStyle='#fff';ctx.fillRect(913,108,52,8);
  drawGrandma(1008,99);
+ // boss taunt bubble
+ ctx.fillStyle='#fff8ee';ctx.strokeStyle='#12051f';ctx.lineWidth=4;
+ ctx.beginPath();ctx.roundRect(760,45,190,58,12);ctx.fill();ctx.stroke();
+ ctx.fillStyle='#12051f';ctx.font='bold 20px "Courier New"';ctx.textAlign='center';
+ ctx.fillText('FAT ASS!',855,80);ctx.textAlign='left';
  // hazards
  for(const h of g.hazards){ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.rot);drawHazard(h.type);ctx.restore()}
  // powerups
@@ -277,19 +299,35 @@ function drawPlayer(p){
  ctx.save();ctx.translate(p.x,p.y);
  let scale=1+game.thicc/170;ctx.translate(p.w/2,p.h);ctx.scale(scale,1);ctx.translate(-p.w/2,-p.h);
  if(p.inv>0&&Math.floor(p.inv*12)%2===0)ctx.globalAlpha=.35;
- // body
- ctx.fillStyle='#ffe45e';ctx.fillRect(8,16,23,30);ctx.fillStyle='#ffb26b';ctx.fillRect(10,0,19,18);
- ctx.fillStyle='#12051f';ctx.fillRect(p.facing>0?24:12,6,4,4);
- ctx.fillStyle='#ff4fd8';ctx.fillRect(5,46,12,8);ctx.fillRect(23,46,12,8);
+ // layered arcade hero sprite
+ ctx.fillStyle='#ffb26b';ctx.beginPath();ctx.arc(19,9,11,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#2a143a';ctx.beginPath();ctx.arc(19,5,11,Math.PI,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#12051f';ctx.fillRect(p.facing>0?24:11,7,4,4);
+ ctx.fillStyle='#38f7ff';ctx.beginPath();ctx.roundRect(5,18,28,28,8);ctx.fill();
+ ctx.fillStyle='#ffe45e';ctx.fillRect(12,21,14,6);
+ ctx.fillStyle='#ffb26b';ctx.fillRect(0,22,7,20);ctx.fillRect(32,22,7,20);
+ ctx.fillStyle='#ff4fd8';ctx.fillRect(5,45,12,10);ctx.fillRect(23,45,12,10);
+ ctx.fillStyle='#fff';ctx.fillRect(5,53,13,4);ctx.fillRect(22,53,13,4);
  if(p.shield>0){ctx.strokeStyle='#38f7ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(19,28,35,0,Math.PI*2);ctx.stroke()}
  if(p.attack>0){ctx.strokeStyle='#fff';ctx.lineWidth=5;ctx.beginPath();ctx.arc(19+p.facing*25,28,25,-1,1);ctx.stroke()}
  ctx.restore();
 }
 function drawGrandma(x,y){
  ctx.save();ctx.translate(x,y);
- ctx.fillStyle='#f2c7a5';ctx.fillRect(-9,-20,18,22);ctx.fillStyle='#eee';ctx.fillRect(-12,-25,24,8);
- ctx.fillStyle='#8f5cff';ctx.fillRect(-8,2,16,34);ctx.fillStyle='#111';ctx.fillRect(-5,36,4,13);ctx.fillRect(2,36,4,13);
- ctx.fillStyle='#ff4fd8';ctx.fillRect(4,-13,3,3);ctx.restore();
+ // exaggerated high-end retro sprite: hair, face, glasses, coat, arms and cane
+ ctx.fillStyle='#eee8f4';ctx.beginPath();ctx.arc(0,-30,18,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#f2c7a5';ctx.beginPath();ctx.ellipse(0,-22,14,18,0,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#12051f';ctx.lineWidth=3;ctx.strokeRect(-12,-28,10,7);ctx.strokeRect(2,-28,10,7);
+ ctx.beginPath();ctx.moveTo(-2,-25);ctx.lineTo(2,-25);ctx.stroke();
+ ctx.fillStyle='#ff4fd8';ctx.fillRect(-7,-15,14,3);
+ ctx.fillStyle='#8f5cff';ctx.beginPath();ctx.moveTo(-12,-5);ctx.lineTo(12,-5);ctx.lineTo(17,35);ctx.lineTo(-17,35);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#f2c7a5';ctx.fillRect(-22,0,9,28);ctx.fillRect(13,0,9,28);
+ ctx.fillStyle='#111';ctx.fillRect(-12,35,8,18);ctx.fillRect(4,35,8,18);
+ ctx.strokeStyle='#ffe45e';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(22,15);ctx.lineTo(28,50);ctx.stroke();
+ // animated shouting marks
+ ctx.strokeStyle='#ffe45e';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(17,-22);ctx.lineTo(29,-28);ctx.moveTo(18,-16);ctx.lineTo(31,-16);ctx.stroke();
+ ctx.restore();
 }
 function drawHazard(t){
  if(t==='VIAL'){ctx.fillStyle='#38f7ff';ctx.fillRect(-6,-15,12,26);ctx.fillStyle='#fff';ctx.fillRect(-5,-11,10,5);ctx.fillStyle='#ff4fd8';ctx.fillRect(-4,2,8,7)}
