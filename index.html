@@ -66,7 +66,7 @@ html,body{margin:0;height:100%;background:#05020a;color:#fff;font-family:Impact,
   transform:translate(-50%,-50%);
   transform-origin:50% 75%;
   pointer-events:none;
-  transition:filter .08s;
+  transition:filter .08s;filter:drop-shadow(0 10px 8px #000b) drop-shadow(0 0 8px #ff2dbf55);
 }
 .pShadow{position:absolute;left:9px;bottom:0;width:52px;height:16px;background:#0009;border-radius:50%;filter:blur(2px)}
 .pLeg{position:absolute;bottom:10px;width:18px;height:39px;background:#282536;border:3px solid #0b0710;border-radius:7px}
@@ -106,10 +106,10 @@ html,body{margin:0;height:100%;background:#05020a;color:#fff;font-family:Impact,
 #stageCard .card{border:4px solid var(--pink);background:#0b0615ee;padding:24px 34px;text-align:center;box-shadow:0 0 35px #ff2dbfaa}
 #stageCard h2{margin:0;color:var(--yellow);font:900 clamp(34px,6vw,72px) "Courier New"}
 #stageCard p{color:var(--cyan);font:bold clamp(18px,2.4vw,30px) "Courier New"}
-#controls{position:absolute;left:0;right:0;bottom:16px;z-index:20;display:flex;justify-content:space-between;padding:0 18px;pointer-events:none}
-.grp{display:flex;gap:12px;pointer-events:auto}
-.ctrl{width:78px;height:78px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle at 35% 30%,#5e317a,#160723 70%);color:#fff;font:900 18px "Courier New";box-shadow:0 6px #000,0 0 16px #29e9ff77;touch-action:none}
-.ctrl.action{border-radius:18px;width:92px;background:radial-gradient(circle at 35% 30%,#ff75da,#821456 70%)}
+#controls{position:absolute;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));z-index:20;display:flex;justify-content:space-between;align-items:flex-end;padding:0 28px;pointer-events:none;user-select:none;-webkit-user-select:none}
+.grp{display:flex;gap:16px;pointer-events:auto;align-items:flex-end}
+.ctrl{width:92px;height:92px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle at 35% 30%,#70418f,#160723 72%);color:#fff;font:900 21px "Courier New";box-shadow:0 8px #000,0 0 20px #29e9ff99,inset 0 0 18px #ffffff22;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ctrl.action{border-radius:24px;width:112px;background:radial-gradient(circle at 35% 30%,#ff75da,#821456 70%)}
 .ctrl:active,.ctrl.down{transform:translateY(4px);box-shadow:0 2px #000;background:#ff2dbf}
 #gameOver,#win{position:absolute;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#06030ddd;text-align:center}
 .overlayBox{border:4px solid var(--pink);background:#0c0714ee;padding:28px 36px;box-shadow:0 0 32px #ff2dbf99}
@@ -128,7 +128,7 @@ text-shadow:7px 7px #ff2d88,12px 12px #000;transition:.14s}
   .scoreLine{font-size:11px}.hearts{font-size:18px}.stageLine{font-size:13px}
   .bar{height:12px}
   #controls{bottom:8px;padding:0 8px}
-  .ctrl{width:58px;height:58px;font-size:14px}.ctrl.action{width:70px}
+  .ctrl{width:72px;height:72px;font-size:16px;border-width:3px}.ctrl.action{width:86px}.grp{gap:10px}#controls{padding:0 10px}
   #taunt{right:4vw;top:18vh;padding:10px 14px;font-size:22px}
 }
 </style>
@@ -172,11 +172,11 @@ text-shadow:7px 7px #ff2d88,12px 12px #000;transition:.14s}
         <div class="bar"><div class="fill" id="thiccFill" style="width:0%"></div></div>
       </div>
     </div>
-    <div id="taunt">FAT ASS!</div>
+    <div id="taunt">FAT ASS!</div><div id="playHint" style="position:absolute;z-index:12;left:50%;bottom:118px;transform:translateX(-50%);font:900 clamp(12px,1.4vw,18px) Courier New;color:#ffe45e;text-shadow:2px 2px #000;pointer-events:none;white-space:nowrap">DODGE THE FOOD • JUMP • SMACK IT BACK</div>
     <div id="stageCard"><div class="card"><h2 id="cardTitle"></h2><p id="cardSub"></p></div></div>
     <div id="controls">
       <div class="grp"><button class="ctrl" data-key="ArrowLeft">◀</button><button class="ctrl" data-key="ArrowRight">▶</button></div>
-      <div class="grp"><button class="ctrl action" data-key="Space">JUMP</button><button class="ctrl action" data-key="KeyX">HIT</button></div>
+      <div class="grp"><button class="ctrl action" data-key="Space">JUMP</button><button class="ctrl action" data-key="KeyX">SMACK</button></div>
     </div>
   </div>
 
@@ -260,9 +260,9 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>keys[e.code]=false);
 document.querySelectorAll('.ctrl').forEach(b=>{
  const k=b.dataset.key;
- const dn=e=>{e.preventDefault();keys[k]=true;b.classList.add('down')};
- const up=e=>{e.preventDefault();keys[k]=false;b.classList.remove('down')};
- b.addEventListener('pointerdown',dn);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
+ const dn=e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}keys[k]=true;b.classList.add('down')};
+ const up=e=>{e.preventDefault();keys[k]=false;b.classList.remove('down');try{b.releasePointerCapture(e.pointerId)}catch(_){}};
+ b.addEventListener('pointerdown',dn);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);
 });
 
 function grandmaYell(force=false){
@@ -287,14 +287,14 @@ function update(dt){
  const climbProgress=Math.max(0,Math.min(1,(p.x-220)/(1160-220)));
  const climbThicc=climbProgress*72;
  const effectiveThicc=Math.max(s.thicc,climbThicc);
- const heavy=1+effectiveThicc/72,spd=(keys.ShiftLeft?410:320)/heavy;
+ const heavy=1+effectiveThicc/95,spd=(keys.ShiftLeft?470:380)/heavy;
  if(keys.ArrowLeft||keys.KeyA){p.vx-=900*dt;p.facing=-1}
  if(keys.ArrowRight||keys.KeyD){p.vx+=900*dt;p.facing=1}
  p.vx*=Math.pow(.02,dt);p.vx=Math.max(-spd,Math.min(spd,p.vx));
- if((keys.Space||keys.ArrowUp)&&p.onGround){p.vy=-590/heavy;p.onGround=false;keys.Space=false;keys.ArrowUp=false;beep(420,.04)}
+ if((keys.Space||keys.ArrowUp)&&p.onGround){p.vy=-650/Math.max(1,heavy*.86);p.onGround=false;keys.Space=false;keys.ArrowUp=false;beep(420,.04)}
  if(keys.KeyX&&p.attack<=0){p.attack=.24;keys.KeyX=false;beep(180,.05)}
  if(p.attack>0)p.attack-=dt;if(p.inv>0)p.inv-=dt;
- p.vy+=1180*dt*heavy;p.x+=p.vx*dt;p.y+=p.vy*dt;
+ p.vy+=1080*dt*Math.min(1.45,heavy);p.x+=p.vx*dt;p.y+=p.vy*dt;
 
  // sloped invisible terrain that matches climbing composition
  const groundY=820 - (p.x-220)*.52;
@@ -327,13 +327,13 @@ function update(dt){
 }
 function spawnHazard(){
  const p=state.player;
- const types=['VIAL','DONUT','CAKE','FLAMINGO','SCOOTER','TRAY'];
- let type=types[Math.floor(Math.random()*types.length)],sx=1250+Math.random()*120,sy=150+Math.random()*80;
+ const types=['DONUT','CAKE','TRAY','DONUT','CAKE','VIAL','FLAMINGO','SCOOTER'];
+ let type=types[Math.floor(Math.random()*types.length)],sx=1190+Math.random()*80,sy=205+Math.random()*55;
  let dx=p.x-sx,dy=p.y-sy,m=Math.hypot(dx,dy),speed=360+state.stage*55+Math.random()*80;
  const hid='h'+Date.now()+Math.floor(Math.random()*99999);
- state.hazards.push({id:hid,type,x:sx,y:sy,vx:dx/m*speed-80,vy:dy/m*speed-150,vr:(Math.random()-.5)*8,rot:0,r:type==='SCOOTER'?28:20,damage:type==='VIAL'?24:18,friendly:false});
+ state.hazards.push({id:hid,type,x:sx,y:sy,vx:dx/m*speed-80,vy:dy/m*speed-150,vr:(Math.random()-.5)*8,rot:0,r:type==='SCOOTER'?28:20,damage:type==='VIAL'?18:14,friendly:false});
  bossThrowFlash.classList.add('show');setTimeout(()=>bossThrowFlash.classList.remove('show'),180);
- if(Math.random()<.36)grandmaYell();
+ if(Math.random()<.62)grandmaYell();
 }
 function hit(d){
  const s=state,p=s.player;if(p.inv>0)return;p.inv=1;s.thicc=Math.min(100,s.thicc+d);p.vx=-320;p.vy=-270;s.shake=12;beep(90,.15);grandmaYell();
@@ -379,8 +379,13 @@ function updateDomHazards(){
      if(h.type!=='VIAL')el.textContent=hazardIcon(h.type);
      hazardLayer.appendChild(el);
    }
-   const xPct=h.x/1600*100;
-   const yPct=h.y/900*100;
+   // Map projectiles to the exact same visual hill path as the moving challenger.
+   // The old build used raw canvas percentages here, which made food visibly miss the player.
+   const hp=(h.x-220)/(1160-220);
+   const xPct=22 + hp*53;
+   const groundWorld=820-(h.x-220)*.52;
+   const groundScreen=77-hp*42;
+   const yPct=groundScreen + (h.y-groundWorld)/9;
    el.style.left=xPct+'%';
    el.style.top=yPct+'%';
    const sc=h.friendly?1.15:1;
